@@ -47,9 +47,7 @@ body, figure, image {
           position: absolute;
           top: 50%;
           left: 50%;
-          transform: translate(-50%, -50%);
           text-align: center;
-          z-index: 2;
         }
 
 @import url("https://fonts.googleapis.com/css?family=Raleway:900&display=swap");
@@ -63,8 +61,10 @@ body {
     margin: auto;
     width: 100vw;
     height: 80pt;
-    top: 0;
-    bottom: 0;
+    top: 50%;
+    left:50%;
+    z-index: 2;
+    transform: translate(-50%, -50%);
 
     filter: url(#threshold) blur(0.6px);
 }
@@ -86,8 +86,7 @@ body {
     </style>
 </head>
 <body>
-  <div id="welcomeDiv">
-    <div id="container">
+  <div id="container">
       <span id="text1"></span>
       <span id="text2"></span>
   </div>
@@ -102,7 +101,6 @@ body {
           </filter>
       </defs>
   </svg>
-  </div>
     <div class='intro'>
         <figure class="tulips">
           <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="262" height="306.1" viewBox="0 0 262 306.1">

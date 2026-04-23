@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Galleria 3D Interattiva</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="glcanvas"></canvas>
+
+  <!-- Librerie utili fornite dal corso -->
+  <script src="utils/webgl-utils.js"></script>
+  <script src="utils/m4.js"></script>
+  <script src="utils/glm_utils.js"></script>
+  <script src="utils/mesh_utils.js"></script>
+  <script src="utils/dat.gui.js"></script>
+  <script src="utils/jquery-3.6.0.js"></script>
+
+  <!-- Shader -->
+  <script id="vs" type="x-shader/x-vertex">
+    attribute vec4 a_position;
+    attribute vec3 a_normal;
+    attribute vec2 a_texcoord;
+
+    uniform mat4 u_matrix;
+    uniform mat4 u_world;
+    uniform mat4 u_worldInverseTranspose;
+
+    varying vec3 v_normal;
+    varying vec2 v_texcoord;
+    varying vec3 v_surfaceToLight;
+    varying vec3 v_surfaceToView;
+
+    uniform vec3 u_lightWorldPosition;
+    uniform vec3 u_viewWorldPosition;
+
+    void main() {
+        gl_Position = u_matrix * a_position;
+        v_texcoord = a_texcoord;
+
+        vec3 surfaceWorldPosition = (u_world * a_position).xyz;
+        v_surfaceToLight = u_lightWorldPosition - surfaceWorldPosition;
+        v_surfaceToView = u_viewWorldPosition - surfaceWorldPosition;
+
+        v_normal = mat3(u_worldInverseTranspose) * a_normal;
+    }
+  </script>
+
+  <script id="fs" type="x-shader/x-fragment">
+    precision mediump float;
+
+    varying vec3 v_normal;
+    varying vec2 v_texcoord;
+    varying vec3 v_surfaceToLight;
+    varying vec3 v_surfaceToView;
+
+    uniform sampler2D u_texture;
+    uniform vec4 u_color;
+    uniform float u_shininess;
+    uniform vec3 u_lightColor;
+    uniform vec3 u_specularColor;
+
+    void main() {
+        vec3 normal = normalize(v_normal);
+        vec3 surfaceToLightDir = normalize(v_surfaceToLight);
+        vec3 surfaceToViewDir = normalize(v_surfaceToView);
+        vec3 halfVector = normalize(surfaceToLightDir + surfaceToViewDir);
+
+        float light = max(dot(normal, surfaceToLightDir), 0.0);
+        float specular = 0.0;
+        if (light > 0.0) {
+            specular = pow(max(dot(normal, halfVector), 0.0), u_shininess);
+        }
+
+        vec4 texColor = texture2D(u_texture, v_texcoord) * u_color;
+        gl_FragColor = vec4(
+            texColor.rgb * light * u_lightColor +
+            specular * u_specularColor,
+            texColor.a
+        );
+    }
+  </script>
+
+  <!-- Script principale -->
+  <script src="main.js"></script>
+</body>
+</html>

@@ -1328,6 +1328,7 @@ let joystickOrigin = { x: 0, y: 0 };
 let joystickDelta  = { x: 0, y: 0 };
 
 joystickZone.addEventListener('touchstart', e => {
+  if (menuOpen) return;
   e.preventDefault();
   const t = e.changedTouches[0];
   joystickId = t.identifier;
@@ -1361,7 +1362,7 @@ joystickZone.addEventListener('touchend', e => {
 }, { passive: false });
 
 function applyJoystickMovement() {
-  if (!joystickActive || sit) return;
+  if (!joystickActive || sit || menuOpen) return;
   const spd = 0.08;
   const nx = joystickDelta.x / JOYSTICK_MAX;
   const ny = joystickDelta.y / JOYSTICK_MAX;
@@ -1377,6 +1378,7 @@ let lookId    = null;
 let lookLastX = 0;
 
 lookZone.addEventListener('touchstart', e => {
+  if (menuOpen) return;
   e.preventDefault();
   if (lookId !== null) return;
   const t = e.changedTouches[0];
@@ -1385,6 +1387,7 @@ lookZone.addEventListener('touchstart', e => {
 }, { passive: false });
 
 lookZone.addEventListener('touchmove', e => {
+  if (menuOpen) return;
   e.preventDefault();
   for (const t of e.changedTouches) {
     if (t.identifier !== lookId) continue;
@@ -2290,6 +2293,10 @@ shadowsCtrl.onChange(val => {
 });
 
 gui.domElement.style.display = 'none';
+if ('ontouchstart' in window) {
+  gui.domElement.style.transform = 'scale(2)';
+  gui.domElement.style.transformOrigin = 'top right';
+}
 
 
 /**

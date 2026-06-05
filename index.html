@@ -39,6 +39,7 @@
   </div>
   <div id="look-zone"></div>
   <div id="interact-btn">E</div>
+  <div id="menu-btn">⚙</div>
 </div>
 
 <style>
@@ -149,6 +150,22 @@ div#notification {
   user-select: none;
 }
 
+#menu-btn {
+  position: absolute;
+  top: 20px; right: 20px;
+  width: 54px; height: 54px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.18);
+  border: 2px solid rgba(255,255,255,0.4);
+  color: white;
+  font-size: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: all;
+  user-select: none;
+}
+
 </style>
 
 <!-- ===== EXTERNAL LIBRARY IMPORTS ===== -->
@@ -248,6 +265,7 @@ uniform bool u_useTexture;   /* Flag: true = use texture, false = use solid colo
 uniform samplerCube u_shadowCube;
 uniform samplerCube u_shadowCube1;
 uniform float u_farPlane;
+uniform bool u_useShadows;
 
 // ===== INPUT FROM VERTEX SHADER =====
 in vec3 v_normal;     /* Normal vector at this fragment */
@@ -332,6 +350,7 @@ float shadowCalculation() {
 
 /* Single sample — campiona la cubemap corrispondente all'indice luce */
 float shadowCalculation(int lightIndex) {
+    if (!u_useShadows) return 0.0;
     vec3 fragToLight;
     float closestDepth;
     if (lightIndex == 0) {
@@ -873,6 +892,10 @@ function setupRoomGeometry() {
 
 // ==================== CAMERA MOVEMENT ====================
 
+let menuOpen = false;
+let shadowsEnabled = true;
+let gui;
+
 /**
  * Checks if the player can sit on a bench at their current position
  * Defines sitting zones as rectangular areas in front of benches
@@ -914,6 +937,12 @@ function canSit() {
  * - E: Toggle sit/stand position
  */
 function handleCameraMovement(e) {
+  if (e.key === 'm' || e.key === 'M') {
+    menuOpen = !menuOpen;
+    if (gui) gui.domElement.style.display = menuOpen ? '' : 'none';
+    return;
+  }
+  if (menuOpen) return;
   const spd = 0.2;  /* Movement speed multiplier */
   
   /* Calculate directional vectors based on camera yaw */
@@ -1378,6 +1407,12 @@ document.getElementById('interact-btn').addEventListener('touchstart', e => {
   handleCameraMovement({ key: 'e' });
 }, { passive: false });
 
+// --- Pulsante menu impostazioni (equivalente tasto M) ---
+document.getElementById('menu-btn').addEventListener('touchstart', e => {
+  e.preventDefault();
+  handleCameraMovement({ key: 'm' });
+}, { passive: false });
+
 // ===== PROJECTION MATRIX =====
 /**
  * Projection matrix transforms 3D view space to 2D screen space
@@ -1666,14 +1701,14 @@ gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 */
 
 /* NUOVO: cubemap per ombre omnidirezionali dalla point light */
-const SHADOW_SIZE = 2048; /* 1024 per le 6 facce — ridotto rispetto alla 2D per performance */
+let SHADOW_SIZE = 512;
 const SHADOW_FAR  = 30.0; /* Far plane della luce — deve coprire la stanza intera */
 
 /* Abilita il rendering su texture float (necessario per R32F) */
 gl.getExtension('EXT_color_buffer_float');
 
 /* Crea la cubemap che riceverà la distanza normalizzata per ogni direzione */
-const shadowCubeTexture = gl.createTexture();
+let shadowCubeTexture = gl.createTexture();
 gl.bindTexture(gl.TEXTURE_CUBE_MAP, shadowCubeTexture);
 for (let i = 0; i < 6; i++) {
     gl.texImage2D(
@@ -1689,7 +1724,7 @@ gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
 
 /* Renderbuffer depth — serve per il depth test durante i 6 pass */
-const shadowDepthRBO = gl.createRenderbuffer();
+let shadowDepthRBO = gl.createRenderbuffer();
 gl.bindRenderbuffer(gl.RENDERBUFFER, shadowDepthRBO);
 gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, SHADOW_SIZE, SHADOW_SIZE);
 
@@ -1700,7 +1735,7 @@ gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER,
 gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
 /* Cubemap e FBO per la seconda luce */
-const shadowCubeTexture1 = gl.createTexture();
+let shadowCubeTexture1 = gl.createTexture();
 gl.bindTexture(gl.TEXTURE_CUBE_MAP, shadowCubeTexture1);
 for (let i = 0; i < 6; i++) {
     gl.texImage2D(
@@ -1715,7 +1750,7 @@ gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
 
-const shadowDepthRBO1 = gl.createRenderbuffer();
+let shadowDepthRBO1 = gl.createRenderbuffer();
 gl.bindRenderbuffer(gl.RENDERBUFFER, shadowDepthRBO1);
 gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, SHADOW_SIZE, SHADOW_SIZE);
 
@@ -1757,6 +1792,7 @@ const u_lightSpaceMatrixLocation = gl.getUniformLocation(progObj, "u_lightSpaceM
 const u_shadowCubeLocation  = gl.getUniformLocation(progObj, "u_shadowCube");
 const u_shadowCube1Location = gl.getUniformLocation(progObj, "u_shadowCube1");
 const u_farPlaneLocation    = gl.getUniformLocation(progObj, "u_farPlane");
+const u_useShadowsLocation  = gl.getUniformLocation(progObj, "u_useShadows");
 
 /* NUOVO: uniform aggiuntive per il depth program (posizione luce e far plane) */
 const depth_uLightPos = gl.getUniformLocation(depthProgram, "u_lightPos");
@@ -1870,6 +1906,42 @@ function renderShadowMap(lightIndex, cubeTexture, fbo) {
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, canvas.width, canvas.height);
+}
+
+function recreateShadowResources(newSize) {
+    SHADOW_SIZE = newSize;
+
+    gl.deleteTexture(shadowCubeTexture);
+    shadowCubeTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_CUBE_MAP, shadowCubeTexture);
+    for (let i = 0; i < 6; i++) {
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, gl.R32F,
+            newSize, newSize, 0, gl.RED, gl.FLOAT, null);
+    }
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
+
+    gl.bindRenderbuffer(gl.RENDERBUFFER, shadowDepthRBO);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, newSize, newSize);
+
+    gl.deleteTexture(shadowCubeTexture1);
+    shadowCubeTexture1 = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_CUBE_MAP, shadowCubeTexture1);
+    for (let i = 0; i < 6; i++) {
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, gl.R32F,
+            newSize, newSize, 0, gl.RED, gl.FLOAT, null);
+    }
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
+
+    gl.bindRenderbuffer(gl.RENDERBUFFER, shadowDepthRBO1);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, newSize, newSize);
 }
 
 
@@ -2192,6 +2264,34 @@ function drawScene(program, isDepthPass = false) {
 }
 
 
+// ==================== SETTINGS MENU (dat.GUI) ====================
+
+const qualitySizes = { 'Bassa': 512, 'Normale': 1024, 'Alta': 2048, 'Ottima': 4096 };
+
+const guiParams = {
+    shadows: true,
+    shadowQuality: 'Bassa',
+    salva: function() {
+        shadowsEnabled = guiParams.shadows;
+        const newSize = qualitySizes[guiParams.shadowQuality];
+        if (newSize !== SHADOW_SIZE) recreateShadowResources(newSize);
+        menuOpen = false;
+        gui.domElement.style.display = 'none';
+    }
+};
+
+gui = new dat.GUI({ name: 'Impostazioni' });
+const shadowsCtrl  = gui.add(guiParams, 'shadows').name('Mostra ombre');
+const qualityCtrl  = gui.add(guiParams, 'shadowQuality', Object.keys(qualitySizes)).name('Qualità ombre');
+gui.add(guiParams, 'salva').name('Salva impostazioni');
+
+shadowsCtrl.onChange(val => {
+    qualityCtrl.__li.style.display = val ? '' : 'none';
+});
+
+gui.domElement.style.display = 'none';
+
+
 /**
  * MAIN ANIMATION FRAME
  * This function is called 60 times per second (60 FPS)
@@ -2207,8 +2307,10 @@ function draw() {
 
   // [OLD - 2D shadow map] const lightSpaceMatrix = computeShadowMatrix();
   // [OLD - 2D shadow map] renderShadowMap(lightSpaceMatrix);
-  renderShadowMap(0, shadowCubeTexture,  shadowFBO);   /* luce 0 */
-  renderShadowMap(1, shadowCubeTexture1, shadowFBO1);  /* luce 1 */
+  if (shadowsEnabled) {
+    renderShadowMap(0, shadowCubeTexture,  shadowFBO);   /* luce 0 */
+    renderShadowMap(1, shadowCubeTexture1, shadowFBO1);  /* luce 1 */
+  }
 
   /* Use the main object rendering program */
   gl.useProgram(progObj);
@@ -2269,6 +2371,7 @@ function draw() {
   gl.uniform1i(u_shadowCube1Location, 2);
 
   gl.uniform1f(u_farPlaneLocation, SHADOW_FAR);
+  gl.uniform1i(u_useShadowsLocation, shadowsEnabled ? 1 : 0);
 
   /* ===== RENDER THE SCENE ===== */
   /**

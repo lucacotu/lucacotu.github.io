@@ -31,6 +31,13 @@
 <!-- Notification div: Displays temporary messages to the user (e.g., "You can't sit here") -->
 <div id="notification"></div>
 
+<!-- Controls legend: Fixed top-left panel with movement instructions (desktop only) -->
+<div id="controls-legend">
+  <div><strong>WASD</strong> &ndash; Muoviti</div>
+  <div><strong>Frecce / Mouse</strong> &ndash; Guarda intorno</div>
+  <div><strong>E</strong> &ndash; Siediti / Alzati</div>
+</div>
+
 <!-- Touch controls overlay: visible only on touch devices -->
 <div id="touch-controls">
   <div id="joystick-zone">
@@ -76,6 +83,21 @@ div#notification {
   transition: opacity 0.5s; /* Smooth fade in/out animation over 500ms */
   pointer-events: none;     /* Don't block mouse/touch events */
 }
+/* Controls legend: Fixed panel in the top-left corner with movement instructions */
+#controls-legend {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  padding: 12px 18px;
+  font-size: 16px;
+  line-height: 1.6;
+  color: white;
+  background: rgba(0,0,0,0.5);
+  border-radius: 12px;
+  font-family: Arial, sans-serif;
+  pointer-events: none;  /* Don't block mouse/touch events on the canvas */
+}
+
 #loading {
   position: absolute;
   top: 0; left: 0;
@@ -528,12 +550,12 @@ let resourcesToLoad = 12;
 
 function onResourceLoaded() {
   resourcesToLoad--;
-  document.getElementById("loading-text").innerText = 
+  document.getElementById("loading-text").innerText =
     `Loading... ${12 - resourcesToLoad}/12`;
   if (resourcesToLoad <= 0) {
     document.getElementById("loading").style.display = "none";
-    showNotification("Press E to sit down and stand up", 2000);
-    draw(); 
+    // showNotification("Press E to sit down and stand up", 2000);
+    draw();
   }
 }
 
@@ -684,17 +706,22 @@ function loadTexture(gl, path, fileName) {
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
       
-      /* If image dimensions are power-of-2, enable mipmapping for better performance */
-      if (isPowerOf2(img.width) && isPowerOf2(img.height)) {
-        gl.generateMipmap(gl.TEXTURE_2D);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-      } else {
-        /* For non-power-of-2 textures, use CLAMP_TO_EDGE to avoid artifacts */
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      }
+      // /* If image dimensions are power-of-2, enable mipmapping for better performance */
+      // if (isPowerOf2(img.width) && isPowerOf2(img.height)) {
+      //   gl.generateMipmap(gl.TEXTURE_2D);
+      //   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+      //   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+      // } else {
+      //   /* For non-power-of-2 textures, use CLAMP_TO_EDGE to avoid artifacts */
+      //   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      //   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      //   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      // }
+
+      /* WebGL2 supports mipmapping and REPEAT wrapping for NPOT textures, so tiling (e.g. ceiling/floor UVs > 1) always works */
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
       onResourceLoaded();  /* Notify that a resource has finished loading */  
     };
     img.src = path + fileName;
@@ -939,7 +966,13 @@ function canSit() {
 function handleCameraMovement(e) {
   if (e.key === 'm' || e.key === 'M') {
     menuOpen = !menuOpen;
-    if (gui) gui.domElement.style.display = menuOpen ? '' : 'none';
+    if (gui) {
+      if ('ontouchstart' in window) {
+        gui.domElement.style.display = menuOpen ? '' : 'none';
+      } else {
+        menuOpen ? gui.open() : gui.close();
+      }
+    }
     return;
   }
   if (menuOpen) return;
@@ -975,7 +1008,7 @@ function handleCameraMovement(e) {
       camPos[1] = 1.6;  /* Eye height when standing */
       if (first) {
         first = !first;
-        showNotification("Use WASD and the arrow keys to move", 2000);
+        // showNotification("Use WASD and the arrow keys to move", 2000);
       }
     } else {
       /* Attempting to sit on a bench */
@@ -1271,7 +1304,7 @@ const wallCount = (wallN.length + wallS.length + wallE.length + wallW.length) / 
 /* Room surface textures */
 const textureWall = loadTexture(gl, "", "white-wall-textures.jpg");   /* Wall texture */
 const textureFloor = loadTexture(gl, "", "wood_floor_diff_4k.jpg");   /* Wood floor */
-const textureCeil = loadTexture(gl, "", "wood_floor_diff_4k.jpg");    /* Ceiling (same as floor) */
+const textureCeil = loadTexture(gl, "", "white-wall-textures.jpg");    /* Ceiling (same as floor) */
 
 /* Painting/frame textures (5 different artworks) */
 let textureFrame = [];
@@ -1282,7 +1315,7 @@ textureFrame[3] = loadTexture(gl, "", "Manet.jpg");       /* Manet painting */
 textureFrame[4] = loadTexture(gl, "", "dali.jpg");        /* Dalí painting */
 
 /* Object textures */
-const textureStatue = loadTexture(gl, "", "DIANE1_2048x2048.jpg");    /* Marble statue texture */
+const textureStatue = loadTexture(gl, "", "statue_texture.jpg");    /* Marble statue texture */
 const textureBench = loadTexture(gl, "", "bench_Albedo.png");         /* Bench wood texture */
 
 console.log("Texture caricate: ", textureWall, textureFloor, textureCeil)
@@ -1315,6 +1348,7 @@ document.addEventListener("keydown", e => {
 
 if ('ontouchstart' in window) {
   document.getElementById('touch-controls').style.display = 'block';
+  document.getElementById('controls-legend').style.display = 'none';
 }
 
 // --- Joystick (movimento, lato sinistro) ---
@@ -1416,6 +1450,26 @@ document.getElementById('menu-btn').addEventListener('touchstart', e => {
   handleCameraMovement({ key: 'm' });
 }, { passive: false });
 
+// ==================== MOUSE LOOK (DESKTOP) ====================
+if (!('ontouchstart' in window)) {
+  const MOUSE_SENSITIVITY = 0.003;
+  let mouseDown = false;
+
+  canvas.addEventListener('mousedown', e => {
+    if (menuOpen) return;
+    mouseDown = true;
+  });
+
+  document.addEventListener('mouseup', () => {
+    mouseDown = false;
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!mouseDown || menuOpen) return;
+    yaw += e.movementX * MOUSE_SENSITIVITY;
+  });
+}
+
 // ===== PROJECTION MATRIX =====
 /**
  * Projection matrix transforms 3D view space to 2D screen space
@@ -1501,7 +1555,7 @@ for (let i=0; i<2; i++){
 
 /* Light source mesh (currently unused) */
 var meshLight = new Array();
-meshLight.sourceMesh= 'light.obj';
+meshLight.sourceMesh= 'light_2.obj';
 meshLight.index = 0;
 meshLight.part = [];
 
@@ -1590,14 +1644,9 @@ LoadMesh(gl, meshBench, () => {
  * Currently: 1 main light source at ceiling center
  * Structure: position [x,y,z], color [r,g,b], intensity (brightness multiplier)
  */
-/* [OLD - single light]
 const lights = [
-    {position:[0,2.8,0], color:[1,1,1], intensity:4}
-];
-*/
-const lights = [
-    {position:[4,2.8,0],   color:[1,1,1],   intensity:2},  /* Luce bianca centrale */
-    {position:[-4,2.8,0],  color:[1,1,1],  intensity:2},  /* Luce calda laterale */
+    {position:[4,2.5,0],   color:[1,1,1],   intensity:2},  /* Luce bianca centrale */
+    {position:[-4,2.5,0],  color:[1,1,1],  intensity:2},  /* Luce calda laterale */
 ];
 
 function computeShadowMatrix() {
@@ -1704,7 +1753,7 @@ gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 */
 
 /* NUOVO: cubemap per ombre omnidirezionali dalla point light */
-let SHADOW_SIZE = 512;
+let SHADOW_SIZE = 1024;
 const SHADOW_FAR  = 30.0; /* Far plane della luce — deve coprire la stanza intera */
 
 /* Abilita il rendering su texture float (necessario per R32F) */
@@ -2098,14 +2147,14 @@ function drawScene(program, isDepthPass = false) {
                 gl.vertexAttribPointer(texcoordLocation, 2, gl.FLOAT, false, 0, 0);
                 gl.enableVertexAttribArray(texcoordLocation);
 
-                /* Select texture for this frame's artwork */
+                /* Part 0 = cornice (colore oro), part 1 = tela (painting texture) */
                 gl.activeTexture(gl.TEXTURE0);
                 gl.bindTexture(gl.TEXTURE_2D, textureFrame[el.textureIndex]);
                 gl.uniform1i(textureLocation, 0);
 
                 gl.uniform1i(u_ignoreLight, 0);
-                gl.uniform1i(u_useTexture, i);  /* Part 0 is frame, part 1 is canvas */
-                gl.uniform3fv(u_objectColor, [1, 1, 1]);
+                gl.uniform1i(u_useTexture, i);  /* 0 = colore solido, 1 = texture */
+                gl.uniform3fv(u_objectColor, [0.55, 0.40, 0.05]);
             }
 
             /* Build transformation: rotation -> translation */
@@ -2213,6 +2262,52 @@ function drawScene(program, isDepthPass = false) {
     });
 
     // ======================
+    // RENDERING LIGHT FIXTURES
+    // ======================
+    /**
+     * Lampade posizionate nei punti delle due sorgenti di luce della scena.
+     * Renderizzate come oggetti "accesi": non risentono dell'illuminazione
+     * della scena (u_ignoreLight=1) e non proiettano ombre (skip durante
+     * isDepthPass).
+     */
+    if (!isDepthPass) {
+        const lightFixtureScale = 0.25;
+        const lightFixtureYOffset = 0.45;
+        lights.forEach(l => {
+            for (let i = 0; i < meshLight.part.length; i++) {
+                gl.bindBuffer(gl.ARRAY_BUFFER, positionBufLight[i]);
+                gl.vertexAttribPointer(posLoc, 3, gl.FLOAT, false, 0, 0);
+                gl.enableVertexAttribArray(posLoc);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, normalBufLight[i]);
+                gl.vertexAttribPointer(normalLocation, 3, gl.FLOAT, false, 0, 0);
+                gl.enableVertexAttribArray(normalLocation);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBufLight[i]);
+                gl.vertexAttribPointer(texcoordLocation, 2, gl.FLOAT, false, 0, 0);
+                gl.enableVertexAttribArray(texcoordLocation);
+
+                /* Texture non usata (u_useTexture=0): bind comunque richiesto dallo shader */
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, textureFloor);
+                gl.uniform1i(textureLocation, 0);
+
+                gl.uniform1i(u_ignoreLight, 1);
+                gl.uniform1i(u_useTexture, 0);
+                gl.uniform3fv(u_objectColor, meshLight.part[i].diffuse);
+
+                let worldLight = m4.identity();
+                worldLight = m4.multiply(worldLight, m4.translation(l.position[0], l.position[1] + lightFixtureYOffset, l.position[2]));
+                worldLight = m4.multiply(worldLight, m4.scaling(lightFixtureScale, lightFixtureScale, lightFixtureScale));
+                gl.uniformMatrix4fv(frameLocation, false, worldLight);
+                setNormalMatrix(worldLight);
+
+                gl.drawArrays(gl.TRIANGLES, 0, numVerticesLight[i]);
+            }
+        });
+    }
+
+    // ======================
     // RENDERING CAPTIONS/PLAQUES
     // ======================
     /**
@@ -2269,33 +2364,41 @@ function drawScene(program, isDepthPass = false) {
 
 // ==================== SETTINGS MENU (dat.GUI) ====================
 
-const qualitySizes = { 'Bassa': 512, 'Normale': 1024, 'Alta': 2048, 'Ottima': 4096 };
+const qualitySizes  = { 'Bassa': 1024, 'Normale': 2048, 'Alta': 4096 };
+const lightColorMap = { 'Neutra': [1,1,1], 'Calda': [1,0.85,0.6], 'Fredda': [0.8,0.9,1], 'Serale': [0.9,0.85,1] };
 
 const guiParams = {
     shadows: true,
-    shadowQuality: 'Bassa',
+    shadowQuality: 'Normale',
+    lightColor: 'Neutra',
     salva: function() {
         shadowsEnabled = guiParams.shadows;
         const newSize = qualitySizes[guiParams.shadowQuality];
         if (newSize !== SHADOW_SIZE) recreateShadowResources(newSize);
+        const newColor = lightColorMap[guiParams.lightColor];
+        lights.forEach(l => l.color = newColor);
         menuOpen = false;
-        gui.domElement.style.display = 'none';
+        if ('ontouchstart' in window) gui.domElement.style.display = 'none';
+        else gui.close();
     }
 };
 
 gui = new dat.GUI({ name: 'Impostazioni' });
 const shadowsCtrl  = gui.add(guiParams, 'shadows').name('Mostra ombre');
 const qualityCtrl  = gui.add(guiParams, 'shadowQuality', Object.keys(qualitySizes)).name('Qualità ombre');
+gui.add(guiParams, 'lightColor', Object.keys(lightColorMap)).name('Colore luci');
 gui.add(guiParams, 'salva').name('Salva impostazioni');
 
 shadowsCtrl.onChange(val => {
     qualityCtrl.__li.style.display = val ? '' : 'none';
 });
 
-gui.domElement.style.display = 'none';
 if ('ontouchstart' in window) {
+  gui.domElement.style.display = 'none';
   gui.domElement.style.transform = 'scale(2)';
   gui.domElement.style.transformOrigin = 'top right';
+} else {
+  gui.close();
 }
 
 

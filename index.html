@@ -2386,7 +2386,7 @@ const guiParams = {
 gui = new dat.GUI({ name: 'Impostazioni' });
 const shadowsCtrl  = gui.add(guiParams, 'shadows').name('Mostra ombre');
 const qualityCtrl  = gui.add(guiParams, 'shadowQuality', Object.keys(qualitySizes)).name('Qualità ombre');
-gui.add(guiParams, 'lightColor', Object.keys(lightColorMap)).name('Colore luci');
+gui.add(guiParams, 'lightColor', Object.keys(lightColorMap)).name('Luce');
 gui.add(guiParams, 'salva').name('Salva impostazioni');
 
 shadowsCtrl.onChange(val => {

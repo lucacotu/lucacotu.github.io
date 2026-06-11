@@ -1,0 +1,146 @@
+/* ====================================================================
+   FOGLIO DI STILE - GALLERIA 3D INTERATTIVA
+   ====================================================================
+   Stili dell'interfaccia HTML che circonda il canvas WebGL: layout a
+   schermo intero, popup di notifica, schermata di caricamento e
+   overlay dei controlli touch (joystick, look-zone, pulsanti).
+   Il rendering 3D vero e proprio è gestito interamente via WebGL nel
+   canvas #gl; questo file riguarda solo gli elementi HTML sovrapposti.
+   ==================================================================== */
+
+/* Fa sì che html e body riempiano l'intero viewport */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;  /* Evita le barre di scorrimento */
+}
+
+/* Stile del canvas: riempie l'intera finestra mantenendo il contesto di rendering 3D */
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Stile del popup di notifica: riquadro centrato con dissolvenza in entrata/uscita */
+div#notification {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%,-50%);  /* Centra l'elemento */
+  padding: 15px 25px;
+  font-size: 24px;
+  color: white;
+  background: rgba(0,0,0,0.6);  /* Sfondo nero semi-trasparente */
+  border-radius: 12px;
+  font-family: Arial, sans-serif;
+  text-align:center;
+  opacity: 0;               /* Inizialmente invisibile */
+  transition: opacity 0.5s; /* Animazione di dissolvenza graduale in 500ms */
+  pointer-events: none;     /* Non blocca gli eventi del mouse/touch */
+}
+/* Legenda comandi: pannello fisso nell'angolo in alto a sinistra con le istruzioni di movimento */
+#controls-legend {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  padding: 12px 18px;
+  font-size: 16px;
+  line-height: 1.6;
+  color: white;
+  background: rgba(0,0,0,0.5);
+  border-radius: 12px;
+  font-family: Arial, sans-serif;
+  pointer-events: none;  /* Non blocca gli eventi del mouse/touch sul canvas */
+}
+
+#loading {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+#loading-text {
+  color: white;
+  font-family: Arial, sans-serif;
+  font-size: 28px;
+  letter-spacing: 2px;
+}
+
+/* ===== CONTROLLI TOUCH ===== */
+#touch-controls {
+  display: none;
+  position: absolute;
+  bottom: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+
+#joystick-zone {
+  position: absolute;
+  bottom: 30px; left: 30px;
+  width: 140px; height: 140px;
+  pointer-events: all;
+}
+
+#joystick-base {
+  position: absolute;
+  width: 140px; height: 140px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+  border: 2px solid rgba(255,255,255,0.3);
+}
+
+#joystick-thumb {
+  position: absolute;
+  width: 60px; height: 60px;
+  top: 40px; left: 40px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.4);
+  transition: transform 0.04s;
+}
+
+#look-zone {
+  position: absolute;
+  top: 0; right: 0;
+  width: 55%; height: 100%;
+  pointer-events: all;
+}
+
+#interact-btn {
+  position: absolute;
+  bottom: 40px; right: 40px;
+  width: 70px; height: 70px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.18);
+  border: 2px solid rgba(255,255,255,0.4);
+  color: white;
+  font-size: 22px;
+  font-family: Arial, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: all;
+  user-select: none;
+}
+
+#menu-btn {
+  position: absolute;
+  top: 20px; right: 20px;
+  width: 54px; height: 54px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.18);
+  border: 2px solid rgba(255,255,255,0.4);
+  color: white;
+  font-size: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: all;
+  user-select: none;
+}

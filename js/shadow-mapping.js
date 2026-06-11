@@ -125,14 +125,14 @@ function renderShadowMap(lightIndex, cubeTexture, fbo) {
         const lightSpaceMatrix = m4.multiply(lightProj, lightView);
         gl.uniformMatrix4fv(depth_uLightSpace, false, lightSpaceMatrix);
 
-        /* PAVIMENTO */
+        /* Pavimento */
         gl.bindBuffer(gl.ARRAY_BUFFER, floorBuf);
         gl.vertexAttribPointer(depth_posLoc, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(depth_posLoc);
         gl.uniformMatrix4fv(depth_uModel, false, m4.identity());
         gl.drawArrays(gl.TRIANGLES, 0, floor.length / 3);
 
-        /* PANCHINE */
+        /* Panchine */
         benchPosition.forEach(el => {
             for (let i = 0; i < meshBench.part.length; i++) {
                 gl.bindBuffer(gl.ARRAY_BUFFER, positionBufBench[i]);
@@ -144,7 +144,7 @@ function renderShadowMap(lightIndex, cubeTexture, fbo) {
             }
         });
 
-        /* STATUA */
+        /* Statua */
         for (let i = 0; i < meshStatue.part.length; i++) {
             gl.bindBuffer(gl.ARRAY_BUFFER, positionBufStatue[i]);
             gl.vertexAttribPointer(depth_posLoc, 3, gl.FLOAT, false, 0, 0);
@@ -154,7 +154,7 @@ function renderShadowMap(lightIndex, cubeTexture, fbo) {
             gl.drawArrays(gl.TRIANGLES, 0, numVerticesStatue[i]);
         }
 
-        /* CORNICI */
+        /* Quadri */
         frames.forEach(el => {
             for (let i = 0; i < meshFrame.part.length; i++) {
                 gl.bindBuffer(gl.ARRAY_BUFFER, positionBufFrame[i]);

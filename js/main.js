@@ -1,27 +1,10 @@
 /* ====================================================================
    MODULO: MAIN
    ====================================================================
-   Modulo finale, da caricare per ultimo: costruisce il menu
-   impostazioni dat.GUI (ombre on/off, qualità ombre, colore luce,
-   pulsante "Salva impostazioni") e definisce draw(), il loop di
-   animazione principale che ad ogni frame aggiorna la telecamera,
-   invia le uniform allo shader, esegue le passate di shadow mapping e
-   chiama drawScene(). Il loop viene avviato la prima volta da
-   onResourceLoaded() (in js/utils.js) quando tutte le risorse sono
-   state caricate, poi si auto-richiama con requestAnimationFrame.
-
-   Dipendenze: richiede la libreria dat.gui.js (caricata nell'<head>),
-   js/scene-geometry.js (gl, proj), js/camera-controls.js (gui,
-   menuOpen, shadowsEnabled, camPos, yaw, applyJoystickMovement),
-   js/scene-objects.js (lights), js/shaders-setup.js (progObj e le
-   location di view/projection/viewPos/luci), js/shadow-mapping.js
-   (SHADOW_SIZE, SHADOW_FAR, le cubemap/FBO delle ombre, le location
-   shadow, renderShadowMap, recreateShadowResources) e js/render.js
-   (drawScene).
-
-   Espone: la funzione draw() (avviata da onResourceLoaded) e assegna
-   l'istanza dat.GUI alla variabile globale "gui" già dichiarata in
-   js/camera-controls.js.
+   Modulo che costruisce il menu impostazioni dat.GUI e definisce draw(), 
+   il loop di animazione principale. Il loop viene avviato la prima 
+   volta da onResourceLoaded() quando tutte le risorse sono state caricate, 
+   poi si auto-richiama con requestAnimationFrame.
    ==================================================================== */
 
 // ==================== MENU IMPOSTAZIONI (dat.GUI) ====================
@@ -65,7 +48,7 @@ if ('ontouchstart' in window) {
 
 /**
  * FRAME PRINCIPALE DI ANIMAZIONE
- * Questa funzione viene chiamata 60 volte al secondo (60 FPS)
+ * Questa funzione viene chiamata 60 volte al secondo
  * Aggiorna la telecamera e renderizza la scena ad ogni frame
  */
 function draw() {
@@ -84,46 +67,33 @@ function draw() {
   /* Usa il programma principale di rendering degli oggetti */
   gl.useProgram(progObj);
 
-  /* ===== AGGIORNAMENTO POSIZIONE TELECAMERA ===== */
-  /**
-   * Calcola la direzione di vista della telecamera:
-   * L'angolo yaw determina verso dove è rivolta la telecamera sul piano orizzontale
-   * La telecamera guarda sempre in avanti rispetto alla sua posizione
-   */
+  /* Calcola la direzione di vista della telecamera */
   const center = [
-    camPos[0] + Math.sin(yaw),    /* Punto di mira: offset in XZ in base allo yaw */
-    camPos[1],                     /* Altezza dello sguardo: uguale alla telecamera */
+    camPos[0] + Math.sin(yaw),
+    camPos[1],                     
     camPos[2] - Math.cos(yaw)
   ];
 
-  /* ===== CALCOLO DELLA MATRICE VISTA ===== */
   /**
    * Matrice della telecamera: descrive dove si trova la telecamera e verso dove è rivolta
-   * Matrice vista: inversa della matrice della telecamera (trasforma il mondo in spazio telecamera)
+   * Matrice vista: inversa della matrice della telecamera
    */
   var cameraMatrix = m4.lookAt(camPos, center, [0, 1, 0]);  /* Mondo con asse Y verso l'alto */
   var viewMatrix = m4.inverse(cameraMatrix);
 
-  /* ===== INVIO DELLE UNIFORM COMUNI ALLO SHADER ===== */
-  /**
-   * Queste uniform sono uguali per tutti gli oggetti in questo frame
-   */
+  /* Invio delle uniform allo shader */
   gl.uniformMatrix4fv(viewMatrixLocation, false, viewMatrix);           /* Matrice vista */
   gl.uniformMatrix4fv(projectionMatrixLocation, false, proj);           /* Matrice di proiezione */
   gl.uniform3fv(u_viewPosLocation, camPos);                             /* Posizione telecamera per lo specular */
 
-  /* ===== INVIO DEI DATI DELLE LUCI ALLO SHADER ===== */
-  /**
-   * Invia allo shader posizione, colore e intensità di ogni sorgente luminosa
-   * Lo shader li usa per calcolare l'illuminazione di tutti gli oggetti
-   */
+  /* Invia allo shader posizione, colore e intensità di ogni sorgente luminosa */
   lights.forEach((l,i)=>{
           gl.uniform3fv(u_lights_position[i], l.position);     /* Posizione della luce */
           gl.uniform3fv(u_lights_color[i], l.color);           /* Colore della luce */
           gl.uniform1f(u_lights_intensity[i], l.intensity);    /* Intensità della luce */
   });
 
-  /* NUOVO: lega le cubemap alle unità di texture 1 e 2 */
+  /* Lega le cubemap alle unità di texture 1 e 2 */
   gl.activeTexture(gl.TEXTURE1);
   gl.bindTexture(gl.TEXTURE_CUBE_MAP, shadowCubeTexture);
   gl.uniform1i(u_shadowCubeLocation, 1);
@@ -138,15 +108,11 @@ function draw() {
   /* ===== RENDERIZZAZIONE DELLA SCENA ===== */
   /**
    * Chiama drawScene per renderizzare tutti gli oggetti con la telecamera e l'illuminazione attuali
-   * isDepthPass=false: rendering normale (non per le shadow map)
    */
-  drawScene(progObj, false);
+  drawScene(progObj);
 
-  /* ===== RICHIESTA DEL FRAME SUCCESSIVO ===== */
-  /**
-   * Pianifica una nuova esecuzione di questa funzione al prossimo frame di animazione del browser
-   * Crea il ciclo di animazione (60 FPS sulla maggior parte dei monitor)
-   */
+
+   /* Crea il ciclo di animazione */
   requestAnimationFrame(draw);
 }
 

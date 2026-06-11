@@ -3,32 +3,24 @@
   ====================================================================
   APPLICAZIONE WEBGL - GALLERIA 3D INTERATTIVA
   ====================================================================
-  Questo è un ambiente 3D interattivo basato su WebGL che simula una
-  visita all'interno di una galleria d'arte. Funzionalità principali:
-  - Navigazione con telecamera in prima persona (WASD per muoversi, frecce per ruotare)
-  - Panchine interattive su cui ci si può sedere (tasto E)
+  Ambiente 3D interattivo basato su WebGL che simula una visita 
+  all'interno di una galleria d'arte. Funzionalità principali:
+  - Navigazione con telecamera in prima persona (WASD per muoversi, frecce/mouse per ruotare)
+  - Panchine su cui ci si può sedere (tasto E)
   - Stanza texturizzata con pavimento, pareti e soffitto
-  - Quadri incorniciati appesi alle pareti
-  - Una statua di marmo al centro della stanza
-  - Illuminazione dinamica e didascalie testuali
-  - Illuminazione basata su modello fisico con riflessi speculari
-
-  Tecnologie utilizzate:
-  - WebGL 2.0 per il  rendering 3D
-  - Shader GLSL ES per la grafica
-  - Libreria di matematica matriciale (m4.js) per le trasformazioni
-  - Loader di file OBJ per i dati delle mesh
+  - 5 quadri e una statua
   ====================================================================
 -->
 
 <html>
 <body>
-<!-- Canvas WebGL: superficie principale di rendering della scena 3D (1200x600px, rapporto 16:9) -->
+<!-- Canvas WebGL: Le dimensioni HTML (1200x600px) sono solo un valore iniziale: 
+ resizeCanvas() lo ridimensiona subito a piena finestra -->
 <canvas id="gl" height="600" width="1200"></canvas>
 <div id="loading">
   <div id="loading-text">Loading...</div>
 </div>
-<!-- Div notifica: mostra messaggi temporanei all'utente (es. "Non puoi sederti qui") -->
+<!-- Div notifica -->
 <div id="notification"></div>
 
 <!-- Legenda comandi: pannello fisso in alto a sinistra con le istruzioni di movimento (solo desktop) -->
@@ -49,33 +41,29 @@
   <div id="menu-btn">⚙</div>
 </div>
 
-<!-- Foglio di stile esterno: layout dell'interfaccia HTML attorno al canvas WebGL -->
+<!-- Foglio di stile -->
 <link rel="stylesheet" href="css/style.css">
 
 <!-- ===== IMPORT LIBRERIE ESTERNE ===== -->
-<!-- webgl-utils.js: funzioni di utilità per WebGL (compilazione degli shader, ecc.) -->
+<!-- webgl-utils.js: funzioni WebGL -->
 <script src="utils/webgl-utils.js"></script>
-<!-- m4.js: libreria di matematica matriciale per le trasformazioni 3D (rotazione, traslazione, proiezione) -->
+<!-- m4.js: libreria di matematica matriciale per le trasformazioni 3D -->
 <script src="utils/m4.js"></script>
-<!-- glm_utils.js: utilità matematiche aggiuntive per i calcoli grafici -->
+<!-- glm_utils.js: funzioni matematiche aggiuntive per i calcoli grafici -->
 <script src="utils/glm_utils.js"></script>
-<!-- mesh_utils.js: utilità per la gestione delle mesh e della geometria -->
+<!-- mesh_utils.js: funzioni per la gestione delle mesh e della geometria -->
 <script src="utils/mesh_utils.js"></script>
-<!-- dat.gui.js: libreria per l'interfaccia grafica di controllo dei parametri, usata dal menu impostazioni in js/main.js -->
+<!-- dat.gui.js: libreria la gestione del menù -->
 <script src="utils/dat.gui.js"></script>
-<!-- jquery-3.6.0.js: libreria jQuery per la manipolazione del DOM (opzionale, qui poco utilizzata) -->
+<!-- jquery-3.6.0.js: libreria jQuery, usata da utils/load_mesh.js (tramite $.ajax) per caricare in modo sincrono i file OBJ/MTL delle mesh -->
 <script src="utils/jquery-3.6.0.js"></script>
-<!-- load_mesh.js: funzione personalizzata per caricare i file mesh OBJ -->
+<!-- load_mesh.js: funzioni per caricare i file mesh OBJ -->
 <script src="utils/load_mesh.js"></script>
 
 <!-- ===== PROGRAMMI SHADER ===== -->
 <!-- 
   VERTEX SHADER PER GLI OGGETTI 3D
-  Elabora ogni vertice delle mesh (cornici, statua, panchine, ecc.)
-  Compiti principali:
-  - Trasformare la posizione del vertice dallo spazio modello allo spazio di clip
-  - Calcolare i vettori normali per i calcoli di illuminazione
-  - Passare le coordinate texture al fragment shader
+  Elabora ogni vertice delle mesh
 -->
 <script id="vertex-shader-obj" type="x-shader/x-vertex">#version 300 es
 precision highp float;
@@ -85,19 +73,19 @@ in vec3 a_position;   /* Posizione 3D del vertice nello spazio modello */
 in vec3 a_normal;     /* Vettore normale per i calcoli di illuminazione */
 in vec2 a_texcoord;   /* Coordinate texture 2D (mapping UV) */
 
-// ===== UNIFORM (uguali per tutti i vertici in una singola draw call) =====
-uniform mat4 u_world;      /* Matrice di trasformazione da spazio modello a spazio mondo */
-uniform mat4 u_view;       /* Matrice di trasformazione da spazio mondo a spazio vista */
-uniform mat4 u_proj;       /* Matrice di proiezione da spazio vista a spazio di clip */
-uniform mat3 u_normalMatrix; /* Trasforma le normali nello spazio mondo (inversa trasposta di u_world) */
+// ===== UNIFORM  =====
+uniform mat4 u_world;      
+uniform mat4 u_view;       
+uniform mat4 u_proj;       
+uniform mat3 u_normalMatrix; 
 
 // ===== OUTPUT VERSO IL FRAGMENT SHADER =====
-out vec3 v_normal;     /* Vettore normale nello spazio mondo */
-out vec3 v_position;   /* Posizione del vertice nello spazio mondo */
-out vec2 v_texcoord;   /* Coordinate texture passate al fragment shader */
+out vec3 v_normal;     /* Vettore normale  */
+out vec3 v_position;   /* Posizione del vertice */
+out vec2 v_texcoord;   /* Coordinate texture */
 
 void main() {
-    /* Trasforma la normale nello spazio mondo per l'illuminazione per-frammento */
+    /* Trasforma la normale nello spazio mondo */
     v_normal = normalize(u_normalMatrix * a_normal);
     /* Passa le coordinate texture invariate */
     v_texcoord = a_texcoord;
@@ -106,16 +94,13 @@ void main() {
     vec4 worldPos = u_world * vec4(a_position, 1.0);
     v_position = worldPos.xyz;
 
-    /* Trasformazione finale: spazio modello -> mondo -> vista -> clip */
+    /* Trasformazione finale */
     gl_Position = u_proj * u_view * worldPos;
 }
 </script>
 <!-- 
   FRAGMENT SHADER PER GLI OGGETTI 3D
-  Calcola il colore finale di ogni pixel utilizzando:
-  - Modello di illuminazione di Phong (diffusa + speculare + ambientale)
-  - Mappatura di texture opzionale
-  - Più sorgenti di luce con attenuazione in base alla distanza
+  Calcola il colore finale di ogni pixel
 -->
 <script id="fragment-shader-obj" type="x-shader/x-fragment">#version 300 es
 precision mediump float;
@@ -130,15 +115,15 @@ struct Light {
     float intensity; /* Moltiplicatore di intensità luminosa */
 };
 
-// ===== UNIFORM DI INPUT =====
+// ===== UNIFORM =====
 uniform Light u_lights[NUM_LIGHTS];     /* Array delle sorgenti di luce */
 uniform vec3 u_viewPos;                 /* Posizione della telecamera nello spazio mondo */
 uniform vec3 u_objectColor;             /* Colore base dell'oggetto */
-uniform int u_ignoreLight;              /* Flag: 0 = applica l'illuminazione, 1 = oggetto non illuminato */
+uniform int u_ignoreLight;              /* 0 = applica l'illuminazione, 1 = oggetto non illuminato */
 uniform sampler2D u_texture;            /* Sampler per la mappatura texture 2D */
-uniform bool u_useTexture;   /* Flag: true = usa la texture, false = usa il colore solido */
+uniform bool u_useTexture;              /* true = usa la texture, false = usa il colore solido */
 
-/* NUOVO: cubemap per ombre omnidirezionali (una per luce) */
+/* cubemap per ombre omnidirezionali (una per luce) */
 uniform samplerCube u_shadowCube;
 uniform samplerCube u_shadowCube1;
 uniform float u_farPlane;
@@ -152,7 +137,6 @@ in vec2 v_texcoord;   /* Coordinate texture di questo frammento */
 // ===== OUTPUT =====
 out vec4 fragColor;   /* Colore RGBA finale di questo pixel */
 
-/* Single sample — campiona la cubemap corrispondente all'indice luce */
 float shadowCalculation(int lightIndex) {
     if (!u_useShadows) return 0.0;
     vec3 fragToLight;
@@ -181,7 +165,7 @@ void main() {
 
     /* ===== CALCOLO ILLUMINAZIONE DI PHONG ===== */
     vec3 norm = normalize(v_normal);                    /* Normalizza la normale della superficie */
-    vec3 viewDir = normalize(u_viewPos - v_position);  /* Direzione dalla superficie alla telecamera */
+    vec3 viewDir = normalize(u_viewPos - v_position);   /* Direzione dalla superficie alla telecamera */
     vec3 result = vec3(0.0);                            /* Accumulatore per l'illuminazione finale */
 
         for (int i = 0; i < NUM_LIGHTS; i++) {
@@ -196,7 +180,6 @@ void main() {
         vec3 diffuse  = diff * u_lights[i].color * u_lights[i].intensity * attenuation;
         vec3 specular = specStrength * spec * u_lights[i].color * u_lights[i].intensity * attenuation;
 
-        /* NUOVO: moltiplica diffuse e specular per (1 - shadow) */
         float shadow = shadowCalculation(i);
         result += (1.0 - shadow) * (diffuse + specular);
     }
@@ -204,7 +187,7 @@ void main() {
     /* Moltiplica l'illuminazione per il colore base (shading dipendente dal colore) */
     result *= baseColor;
 
-    /* Aggiunge la luce ambientale: illuminazione minima ovunque (le ombre non sono nere pure) */
+    /* Aggiunge la luce ambientale */
     result += 0.10 * baseColor;
 
     fragColor = vec4(result, 1.0);
@@ -221,7 +204,6 @@ layout (location=0) in vec3 a_position;
 uniform mat4 u_lightSpaceMatrix;
 uniform mat4 u_model;
 
-/* NUOVO: posizione world-space necessaria per calcolare la distanza nel fragment shader */
 out vec3 v_fragPos;
 
 void main(){
@@ -233,13 +215,11 @@ void main(){
 
 <!-- 
   FRAGMENT SHADER PER IL RENDERING DI PROFONDITÀ/OMBRE
-  Calcola la distanza normalizzata tra il frammento e la luce e la
-  scrive nel canale rosso della cubemap, usata come shadow map
 -->
 <script id="fragment-shader-light" type="x-shader/x-fragment">#version 300 es
 precision highp float;
 
-/* NUOVO: riceve la posizione world-space dal vertex shader */
+/* Riceve la posizione world-space dal vertex shader */
 in vec3 v_fragPos;
 uniform vec3 u_lightPos;
 uniform float u_farPlane;
@@ -253,11 +233,7 @@ void main() {
 }
 </script>
 
-<!-- ===== MODULI JAVASCRIPT DELL'APPLICAZIONE =====
-     Codice applicativo suddiviso in moduli caricati in ordine: ogni
-     modulo dipende dalle variabili/funzioni globali esposte dai
-     moduli precedenti (vedi il commento di intestazione di ciascun
-     file per i dettagli). -->
+<!-- ===== MODULI JAVASCRIPT DELL'APPLICAZIONE ===== --> 
 <!-- Sistema di notifiche e funzioni di utilità WebGL generiche -->
 <script src="js/utils.js"></script>
 <!-- Canvas/contesto WebGL, geometria della stanza e caricamento texture -->
@@ -268,7 +244,7 @@ void main() {
 <script src="js/shaders-setup.js"></script>
 <!-- Dati di scena: luci, cornici, didascalie e panchine -->
 <script src="js/scene-objects.js"></script>
-<!-- Configurazione della shadow mapping a cubemap -->
+<!-- Configurazione della shadow mapping -->
 <script src="js/shadow-mapping.js"></script>
 <!-- Funzione drawScene: disegna l'intera scena -->
 <script src="js/render.js"></script>

@@ -2,38 +2,17 @@
    MODULO: SHADOW MAPPING
    ====================================================================
    Implementa le ombre omnidirezionali in stile "point light shadow"
-   tramite cubemap di profondità: per ciascuna delle due luci della
-   scena viene creata una cubemap R32F con il relativo framebuffer e
-   renderbuffer di profondità, riempita ad ogni frame renderizzando la
-   geometria dal punto di vista della luce nelle 6 direzioni cubiche.
-
-   Dipendenze: richiede gli script shader inline ("vertex-shader-light"
-   e "fragment-shader-light" definiti in index.html), js/scene-geometry.js
-   (gl, canvas, floor, floorBuf), js/scene-objects.js (lights, frames,
-   benchPosition) e js/shaders-setup.js (progObj, meshFrame/meshStatue/
-   meshBench e i relativi buffer di posizione e numVertices).
-
-   Espone (variabili globali condivise, dichiarate con "var"):
-   SHADOW_SIZE, SHADOW_FAR, shadowCubeTexture, shadowCubeTexture1,
-   shadowFBO, shadowFBO1, u_shadowCubeLocation, u_shadowCube1Location,
-   u_farPlaneLocation, u_useShadowsLocation, depth_posLoc (quest'ultima
-   usata da js/render.js per selezionare l'attributo posizione corretto
-   durante la depth pass). Espone inoltre le funzioni
-   renderShadowMap(lightIndex, cubeTexture, fbo) e
-   recreateShadowResources(newSize), usate dal modulo main.js (loop di
-   animazione e menu impostazioni).
+   tramite cubemap di profondità.
    ==================================================================== */
 
-/* ===== CONFIGURAZIONE DELLA SHADOW MAP ===== */
+// Configurazione Shadow Map
 
-/* NUOVO: cubemap per ombre omnidirezionali dalla point light */
 var SHADOW_SIZE = 1024;
-var SHADOW_FAR  = 30.0; /* Far plane della luce — deve coprire la stanza intera */
+var SHADOW_FAR  = 30.0; 
 
 /* Abilita il rendering su texture float (necessario per R32F) */
 gl.getExtension('EXT_color_buffer_float');
 
-/* Crea la cubemap che riceverà la distanza normalizzata per ogni direzione */
 var shadowCubeTexture = gl.createTexture();
 gl.bindTexture(gl.TEXTURE_CUBE_MAP, shadowCubeTexture);
 for (let i = 0; i < 6; i++) {
@@ -49,12 +28,10 @@ gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
 
-/* Renderbuffer depth — serve per il depth test durante i 6 pass */
 let shadowDepthRBO = gl.createRenderbuffer();
 gl.bindRenderbuffer(gl.RENDERBUFFER, shadowDepthRBO);
 gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, SHADOW_SIZE, SHADOW_SIZE);
 
-/* Framebuffer: la faccia della cubemap viene cambiata ogni pass */
 var shadowFBO = gl.createFramebuffer();
 gl.bindFramebuffer(gl.FRAMEBUFFER, shadowFBO);
 gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, shadowDepthRBO);
@@ -92,7 +69,7 @@ const depthProgram = webglUtils.createProgramFromScripts(gl, ["vertex-shader-lig
 
 const depth_uLightSpace = gl.getUniformLocation(depthProgram, "u_lightSpaceMatrix");
 const depth_uModel      = gl.getUniformLocation(depthProgram, "u_model");
-var depth_posLoc        = 0; /* layout(location=0) nel vertex-shader-light */
+var depth_posLoc        = 0;
 
 /* NUOVO: uniform per cubemap shadow nel main program */
 var u_shadowCubeLocation  = gl.getUniformLocation(progObj, "u_shadowCube");

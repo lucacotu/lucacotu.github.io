@@ -2,38 +2,17 @@
    MODULO: SHADOW MAPPING
    ====================================================================
    Implementa le ombre omnidirezionali in stile "point light shadow"
-   tramite cubemap di profondità: per ciascuna delle due luci della
-   scena viene creata una cubemap R32F con il relativo framebuffer e
-   renderbuffer di profondità, riempita ad ogni frame renderizzando la
-   geometria dal punto di vista della luce nelle 6 direzioni cubiche.
-
-   Dipendenze: richiede gli script shader inline ("vertex-shader-light"
-   e "fragment-shader-light" definiti in index.html), js/scene-geometry.js
-   (gl, canvas, floor, floorBuf), js/scene-objects.js (lights, frames,
-   benchPosition) e js/shaders-setup.js (progObj, meshFrame/meshStatue/
-   meshBench e i relativi buffer di posizione e numVertices).
-
-   Espone (variabili globali condivise, dichiarate con "var"):
-   SHADOW_SIZE, SHADOW_FAR, shadowCubeTexture, shadowCubeTexture1,
-   shadowFBO, shadowFBO1, u_shadowCubeLocation, u_shadowCube1Location,
-   u_farPlaneLocation, u_useShadowsLocation, depth_posLoc (quest'ultima
-   usata da js/render.js per selezionare l'attributo posizione corretto
-   durante la depth pass). Espone inoltre le funzioni
-   renderShadowMap(lightIndex, cubeTexture, fbo) e
-   recreateShadowResources(newSize), usate dal modulo main.js (loop di
-   animazione e menu impostazioni).
+   tramite cubemap di profondità.
    ==================================================================== */
 
-/* ===== CONFIGURAZIONE DELLA SHADOW MAP ===== */
+// Configurazione Shadow Map
 
-/* NUOVO: cubemap per ombre omnidirezionali dalla point light */
 var SHADOW_SIZE = 1024;
-var SHADOW_FAR  = 30.0; /* Far plane della luce — deve coprire la stanza intera */
+var SHADOW_FAR  = 30.0; 
 
 /* Abilita il rendering su texture float (necessario per R32F) */
 gl.getExtension('EXT_color_buffer_float');
-
-/* Crea la cubemap che riceverà la distanza normalizzata per ogni direzione */
+ 
 var shadowCubeTexture = gl.createTexture();
 gl.bindTexture(gl.TEXTURE_CUBE_MAP, shadowCubeTexture);
 for (let i = 0; i < 6; i++) {
@@ -49,18 +28,15 @@ gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
 
-/* Renderbuffer depth — serve per il depth test durante i 6 pass */
 let shadowDepthRBO = gl.createRenderbuffer();
 gl.bindRenderbuffer(gl.RENDERBUFFER, shadowDepthRBO);
 gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, SHADOW_SIZE, SHADOW_SIZE);
 
-/* Framebuffer: la faccia della cubemap viene cambiata ogni pass */
 var shadowFBO = gl.createFramebuffer();
 gl.bindFramebuffer(gl.FRAMEBUFFER, shadowFBO);
 gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, shadowDepthRBO);
 gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-/* Cubemap e FBO per la seconda luce */
 var shadowCubeTexture1 = gl.createTexture();
 gl.bindTexture(gl.TEXTURE_CUBE_MAP, shadowCubeTexture1);
 for (let i = 0; i < 6; i++) {
@@ -85,55 +61,44 @@ gl.bindFramebuffer(gl.FRAMEBUFFER, shadowFBO1);
 gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, shadowDepthRBO1);
 gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-/**
- * Programma di profondità/shadow mapping: renderizza le mappe di profondità per le cubemap delle ombre
- */
+// Renderizza le mappe di profondità per le cubemap delle ombre
 const depthProgram = webglUtils.createProgramFromScripts(gl, ["vertex-shader-light", "fragment-shader-light"]);
 
 const depth_uLightSpace = gl.getUniformLocation(depthProgram, "u_lightSpaceMatrix");
 const depth_uModel      = gl.getUniformLocation(depthProgram, "u_model");
-var depth_posLoc        = 0; /* layout(location=0) nel vertex-shader-light */
+var depth_posLoc        = 0; 
 
-/* NUOVO: uniform per cubemap shadow nel main program */
 var u_shadowCubeLocation  = gl.getUniformLocation(progObj, "u_shadowCube");
 var u_shadowCube1Location = gl.getUniformLocation(progObj, "u_shadowCube1");
 var u_farPlaneLocation    = gl.getUniformLocation(progObj, "u_farPlane");
 var u_useShadowsLocation  = gl.getUniformLocation(progObj, "u_useShadows");
 
-/* NUOVO: uniform aggiuntive per il depth program (posizione luce e far plane) */
 const depth_uLightPos = gl.getUniformLocation(depthProgram, "u_lightPos");
 const depth_uFarPlane = gl.getUniformLocation(depthProgram, "u_farPlane");
 
-/* NUOVO: 6 pass — una per ogni faccia della cubemap.
-   lightIndex: indice in lights[], cubeTexture: cubemap da riempire, fbo: framebuffer associato */
 function renderShadowMap(lightIndex, cubeTexture, fbo) {
     const lightPos = lights[lightIndex].position;
     const lightProj = m4.perspective(Math.PI / 2, 1.0, 0.1, SHADOW_FAR);
 
-    /* Sei direzioni standard OpenGL per la cubemap */
     const cubeDirections = [
-        { dir: [ 1, 0, 0], up: [0,-1, 0] }, // +X
-        { dir: [-1, 0, 0], up: [0,-1, 0] }, // -X
-        { dir: [ 0, 1, 0], up: [0, 0, 1] }, // +Y
-        { dir: [ 0,-1, 0], up: [0, 0,-1] }, // -Y
-        { dir: [ 0, 0, 1], up: [0,-1, 0] }, // +Z
-        { dir: [ 0, 0,-1], up: [0,-1, 0] }, // -Z
+        { dir: [ 1, 0, 0], up: [0,-1, 0] }, 
+        { dir: [-1, 0, 0], up: [0,-1, 0] }, 
+        { dir: [ 0, 1, 0], up: [0, 0, 1] }, 
+        { dir: [ 0,-1, 0], up: [0, 0,-1] }, 
+        { dir: [ 0, 0, 1], up: [0,-1, 0] }, 
+        { dir: [ 0, 0,-1], up: [0,-1, 0] }, 
     ];
 
     gl.useProgram(depthProgram);
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
     gl.viewport(0, 0, SHADOW_SIZE, SHADOW_SIZE);
 
-    /* Uniform invarianti tra i 6 pass */
     gl.uniform3fv(depth_uLightPos, lightPos);
     gl.uniform1f(depth_uFarPlane, SHADOW_FAR);
 
-    /* Pulisce ogni faccia al valore massimo (1.0 = distanza infinita = nessuna ombra per
-       direzioni in cui non c'è geometria nella shadow pass) */
     gl.clearColor(1.0, 0.0, 0.0, 1.0);
 
     for (let face = 0; face < 6; face++) {
-        /* Collega la faccia corrente della cubemap come color attachment */
         gl.framebufferTexture2D(
             gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
             gl.TEXTURE_CUBE_MAP_POSITIVE_X + face,
@@ -141,21 +106,20 @@ function renderShadowMap(lightIndex, cubeTexture, fbo) {
         );
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-        /* Calcola la matrice vista dalla luce verso questa faccia */
         const d = cubeDirections[face];
         const target = [lightPos[0]+d.dir[0], lightPos[1]+d.dir[1], lightPos[2]+d.dir[2]];
         const lightView = m4.inverse(m4.lookAt(lightPos, target, d.up));
         const lightSpaceMatrix = m4.multiply(lightProj, lightView);
         gl.uniformMatrix4fv(depth_uLightSpace, false, lightSpaceMatrix);
 
-        /* PAVIMENTO */
+        /* Pavimento */
         gl.bindBuffer(gl.ARRAY_BUFFER, floorBuf);
         gl.vertexAttribPointer(depth_posLoc, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(depth_posLoc);
         gl.uniformMatrix4fv(depth_uModel, false, m4.identity());
         gl.drawArrays(gl.TRIANGLES, 0, floor.length / 3);
 
-        /* PANCHINE */
+        /* Panchine */
         benchPosition.forEach(el => {
             for (let i = 0; i < meshBench.part.length; i++) {
                 gl.bindBuffer(gl.ARRAY_BUFFER, positionBufBench[i]);
@@ -167,7 +131,7 @@ function renderShadowMap(lightIndex, cubeTexture, fbo) {
             }
         });
 
-        /* STATUA */
+        /* Statua */
         for (let i = 0; i < meshStatue.part.length; i++) {
             gl.bindBuffer(gl.ARRAY_BUFFER, positionBufStatue[i]);
             gl.vertexAttribPointer(depth_posLoc, 3, gl.FLOAT, false, 0, 0);
@@ -177,7 +141,7 @@ function renderShadowMap(lightIndex, cubeTexture, fbo) {
             gl.drawArrays(gl.TRIANGLES, 0, numVerticesStatue[i]);
         }
 
-        /* CORNICI */
+        /* Quadri */
         frames.forEach(el => {
             for (let i = 0; i < meshFrame.part.length; i++) {
                 gl.bindBuffer(gl.ARRAY_BUFFER, positionBufFrame[i]);
@@ -194,7 +158,6 @@ function renderShadowMap(lightIndex, cubeTexture, fbo) {
         });
     }
 
-    /* Ripristina il framebuffer principale e il clearColor nero */
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, canvas.width, canvas.height);

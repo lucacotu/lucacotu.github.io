@@ -6,15 +6,6 @@
    apertura/chiusura del menu impostazioni e gestione di tutti gli
    ingressi utente (tastiera, controlli touch a schermo, mouse-look
    da desktop).
-
-   Dipendenze: richiede js/utils.js (showNotification) e
-   js/scene-geometry.js (canvas, width, depth, height) già caricati.
-
-   Espone (variabili globali condivise, dichiarate con "var"):
-   menuOpen, shadowsEnabled, gui, roomMin, roomMax, camPos, yaw, sit,
-   first. Espone inoltre le funzioni canSit(), toggleMenu(),
-   handleCameraMovement(e) e applyJoystickMovement(), usate anche dal
-   modulo main.js (loop di animazione e menu dat.GUI).
    ==================================================================== */
 
 // ==================== MOVIMENTO DELLA TELECAMERA ====================
@@ -25,21 +16,19 @@ var gui;
 
 /**
  * Verifica se il giocatore può sedersi su una panchina nella posizione attuale
- * Definisce le zone in cui ci si può sedere come aree rettangolari davanti alle panchine
- * @returns {boolean} True se il giocatore si trova in una zona valida per sedersi
  */
 function canSit() {
   const x = camPos[0];
   const z = camPos[2];
 
-  /* Definisce le zone valide per sedersi (intervalli di coordinata X per ciascuna panchina) */
+  /* Definisce le zone valide per sedersi per ciascuna panchina */
   const benches = [
     { x: [3.5, 6.5] },   /* Panchina destra */
     { x: [-6.5, -3.5] }, /* Panchina sinistra */
     { x: [-1.5, 1.5] }   /* Panchina centrale */
   ];
 
-  /* Verifica se il giocatore è nell'area per sedersi (Z tra -1 e 1) e vicino a una panchina */
+  /* Verifica se il giocatore è nell'area per sedersi e vicino a una panchina */
   if (z >= -1 && z <= 1) {
     for (let bench of benches) {
       if (x >= bench.x[0] && x <= bench.x[1]) {
@@ -54,7 +43,6 @@ function canSit() {
 
 /**
  * Apre/chiude il menu impostazioni dat.GUI
- * Usata dal pulsante touch "menu-btn" (icona ingranaggio)
  */
 function toggleMenu() {
   menuOpen = !menuOpen;
@@ -71,22 +59,14 @@ function toggleMenu() {
  * Gestisce l'input da tastiera per il movimento della telecamera e l'interazione
  * Implementa il movimento in prima persona con i tasti WASD e la rotazione con le frecce
  * Il tasto E alterna la posizione seduto/in piedi
- * @param {KeyboardEvent} e - L'evento da tastiera
- *
- * Comandi:
- * - W/A/S/D: muoviti avanti/sinistra/indietro/destra (solo da in piedi)
- * - Freccia sinistra/destra: ruota la telecamera (yaw) - funziona sia da seduti che in piedi
- * - E: alterna tra seduto e in piedi
  */
 function handleCameraMovement(e) {
   if (menuOpen) return;
   const spd = 0.2;  /* Moltiplicatore della velocità di movimento */
 
-  /* Calcola i vettori direzionali in base allo yaw della telecamera */
-  const forward = [Math.sin(yaw), 0, -Math.cos(yaw)];      /* Direzione verso cui guarda la telecamera */
-  const right = [Math.cos(yaw), 0, Math.sin(yaw)];         /* Lato destro rispetto alla telecamera */
+  const forward = [Math.sin(yaw), 0, -Math.cos(yaw)];      
+  const right = [Math.cos(yaw), 0, Math.sin(yaw)];
 
-  /* Il movimento è consentito solo da in piedi */
   if (sit == false && (e.key == "w" || e.key == "W")) {
     camPos = camPos.map((v, i) => v + forward[i] * spd);
   }
@@ -100,57 +80,47 @@ function handleCameraMovement(e) {
     camPos = camPos.map((v, i) => v + right[i] * spd);
   }
 
-  /* La rotazione della telecamera è consentita sia da seduti che in piedi */
   if (e.key == "ArrowLeft") yaw -= 0.05;
   if (e.key == "ArrowRight") yaw += 0.05;
 
   /* Alterna tra seduto e in piedi con il tasto E */
   if (e.key == "E" || e.key == "e") {
     if (sit) {
-      /* Si alza dalla panchina */
       sit = !sit;
-      camPos[1] = 1.6;  /* Altezza occhi da in piedi */
-      if (first) {
-        first = !first;
-      }
+      camPos[1] = 1.6;  
     } else {
       /* Tentativo di sedersi su una panchina */
       if (canSit()) {
         sit = !sit;
-        /* Regola l'orientamento della telecamera nella direzione desiderata */
-        if (camPos[2] < 0) yaw = 0;      /* Guarda verso +X se sulla panchina nord */
-        else yaw = Math.PI;              /* Guarda verso -X se sulla panchina sud */
-        camPos[1] = 1;                   /* Altezza occhi da seduto */
-        camPos[2] = 0;                   /* Fissa la posizione Z al centro della panchina */
+        if (camPos[2] < 0) yaw = 0;      
+        else yaw = Math.PI;              
+        camPos[1] = 1;                   
+        camPos[2] = 0;                   
       }
     }
   }
 
-  /* Limita la posizione della telecamera ai confini della stanza (evita di attraversare le pareti) */
+  /* Limita la posizione della telecamera ai confini della stanza */
   camPos = camPos.map((v, i) => Math.min(Math.max(v, roomMin[i]), roomMax[i]));
 }
 
 // ===== INIZIALIZZAZIONE DELLA TELECAMERA =====
 /**
  * Configurazione della telecamera in prima persona
- * Posizione iniziale: centro della stanza, altezza in piedi
- * Orientamento iniziale: rivolta lungo l'asse +X (yaw = 0)
  */
 
-/* Confini dello spazio della telecamera (evita di attraversare le pareti) */
+/* Confini dello spazio della telecamera */
 var roomMin = [-width+1,0,-depth+1];
 var roomMax = [width-1,height,depth-1];
 
 /* Variabili di stato della telecamera */
-var camPos = [0,1,0];   /* Posizione della telecamera [x, y, z] - inizia al centro della stanza */
-var yaw = 0;            /* Angolo di rotazione orizzontale (radianti) */
+var camPos = [0,1,0];   /* Posizione della telecamera */
+var yaw = 0;            /* Angolo di rotazione orizzontale */
 var sit = true;         /* Il giocatore è seduto? */
-var first = true;       /* Il messaggio di aiuto iniziale è già stato mostrato? */
 
-/* Imposta il listener da tastiera per il movimento della telecamera */
+/* Listener da tastiera per il movimento della telecamera */
 document.addEventListener("keydown", e => {
   handleCameraMovement(e);
-  /* Riapplica i limiti alla posizione dopo ogni movimento */
   camPos = camPos.map((v,i) => Math.min(Math.max(v, roomMin[i]), roomMax[i]));
 });
 
@@ -164,7 +134,7 @@ if ('ontouchstart' in window) {
 // --- Joystick (movimento, lato sinistro) ---
 const joystickThumb = document.getElementById('joystick-thumb');
 const joystickZone  = document.getElementById('joystick-zone');
-const JOYSTICK_MAX  = 40; // raggio massimo in px
+const JOYSTICK_MAX  = 40;
 
 let joystickActive = false;
 let joystickId     = null;
@@ -248,7 +218,7 @@ lookZone.addEventListener('touchend', e => {
   }
 }, { passive: false });
 
-// --- Pulsante interazione (equivalente tasto E) ---
+// --- Pulsante interazione ---
 document.getElementById('interact-btn').addEventListener('touchstart', e => {
   e.preventDefault();
   handleCameraMovement({ key: 'e' });
